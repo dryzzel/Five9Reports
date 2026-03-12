@@ -1,0 +1,17 @@
+{
+  "name": "f9-report-tool",
+  "version": "1.0.0",
+  "description": "Five9 Agent Performance Dashboard with API integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^4.2.1",
+    "papaparse": "^5.5.3"
+  }
+}
