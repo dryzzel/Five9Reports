@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
-const { saveSnapshot, getSnapshot, getAvailableHours } = require('./db');
+const { saveSnapshot, getSnapshot, getAvailableHours, deleteSnapshotsAfterHour } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -154,7 +154,7 @@ async function fetchHourlyReports(date, startHour, endHour) {
 // ── API: Fetch reports (with optional hourly range) ──────────
 app.get('/api/reports', async (req, res) => {
     try {
-        const date = req.query.date || new Date().toISOString().slice(0, 10);
+        const date = req.query.date || getTodayDateEDT();
         const startHour = req.query.startHour !== undefined ? parseInt(req.query.startHour) : 0;
         const endHour = req.query.endHour !== undefined ? parseInt(req.query.endHour) : 23;
         const forceRefresh = req.query.force === 'true';
@@ -194,7 +194,7 @@ app.get('/api/reports', async (req, res) => {
 
 // ── API: Get available cached hours for a date ───────────────
 app.get('/api/snapshots', (req, res) => {
-    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const date = req.query.date || getTodayDateEDT();
     const hours = getAvailableHours(date);
     res.json({ date, hours });
 });
@@ -287,7 +287,7 @@ app.get('/api/snapshots/trends', (req, res) => {
 
 // ── API: Get a cached snapshot for a specific hour ───────────
 app.get('/api/snapshots/:hour', (req, res) => {
-    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const date = req.query.date || getTodayDateEDT();
     const hour = parseInt(req.params.hour);
 
     const snapshot = getSnapshot(date, hour);
@@ -304,18 +304,32 @@ app.get('/api/snapshots/:hour', (req, res) => {
     });
 });
 
-// ── Cron: Auto-fetch PREVIOUS hour every hour ────────────────
-// At 5:00 PM we cache 4 PM (the hour that just finished, not the one starting)
-cron.schedule('0 * * * *', async () => {
+// ── Timezone helper: always use EDT (UTC-4) ─────────────────
+function getNowEDT() {
     const now = new Date();
-    const prevHour = now.getHours() - 1;
+    // Shift UTC to EDT (UTC-4)
+    const edt = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+    return edt;
+}
+
+function getTodayDateEDT() {
+    const edt = getNowEDT();
+    return edt.toISOString().slice(0, 10);
+}
+
+// ── Cron: Auto-fetch PREVIOUS hour every hour ────────────────
+// At 5:00 PM EDT we cache 4 PM (the hour that just finished, not the one starting)
+cron.schedule('0 * * * *', async () => {
+    const edt = getNowEDT();
+    const currentHourEDT = edt.getUTCHours();
+    const prevHour = currentHourEDT - 1;
 
     // Skip if previous hour is before midnight (no data for yesterday's 11 PM)
     if (prevHour < 0) return;
 
-    const date = now.toISOString().slice(0, 10);
+    const date = getTodayDateEDT();
 
-    console.log(`\n⏰ Cron: Auto-fetching hour ${prevHour} for ${date}`);
+    console.log(`\n⏰ Cron: Auto-fetching hour ${prevHour} for ${date} (EDT hour: ${currentHourEDT})`);
 
     try {
         const { stateCSV, dispoCSV } = await fetchHourlyReports(date, prevHour, prevHour);
@@ -333,4 +347,13 @@ app.listen(PORT, () => {
     console.log(`   State report:   "${FIVE9_STATE_REPORT}"`);
     console.log(`   Dispo report:   "${FIVE9_DISPO_REPORT}"`);
     console.log(`   ⏰ Hourly cron: active (every hour at :00)\n`);
+
+    // Cleanup: remove any cached future-hour data from today
+    const edt = getNowEDT();
+    const currentHourEDT = edt.getUTCHours();
+    const today = getTodayDateEDT();
+    const result = deleteSnapshotsAfterHour(today, currentHourEDT - 1);
+    if (result.changes > 0) {
+        console.log(`🧹 Cleaned up ${result.changes} stale future-hour snapshot(s) for ${today}`);
+    }
 });

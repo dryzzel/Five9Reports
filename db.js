@@ -54,5 +54,15 @@ function getAvailableHours(date) {
   `);
   return stmt.all(date);
 }
+/**
+ * Delete all snapshots for a date where hour > given hour.
+ * Used to clean up stale future-hour data.
+ */
+function deleteSnapshotsAfterHour(date, hour) {
+  const stmt = db.prepare(`
+    DELETE FROM snapshots WHERE date = ? AND hour > ?
+  `);
+  return stmt.run(date, hour);
+}
 
-module.exports = { saveSnapshot, getSnapshot, getAvailableHours };
+module.exports = { saveSnapshot, getSnapshot, getAvailableHours, deleteSnapshotsAfterHour };
