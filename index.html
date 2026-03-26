@@ -844,6 +844,171 @@
       background: var(--border);
     }
 
+    /* Agent Exclusion Panel */
+    .manage-agents-section {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 12px 32px 0;
+    }
+
+    .manage-agents-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .manage-agents-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s ease;
+    }
+
+    .manage-agents-header:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .manage-agents-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .manage-agents-title .count {
+      background: rgba(251, 113, 133, .15);
+      color: var(--accent-rose);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .manage-agents-toggle {
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: transform .2s ease;
+    }
+
+    .manage-agents-toggle.open {
+      transform: rotate(180deg);
+    }
+
+    .manage-agents-body {
+      display: none;
+      padding: 0 20px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .manage-agents-body.open {
+      display: block;
+    }
+
+    .manage-agents-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 12px 0;
+      font-style: italic;
+    }
+
+    .agents-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .agents-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .agents-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .agent-toggle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      transition: all .2s ease;
+    }
+
+    .agent-toggle-item.excluded {
+      opacity: .55;
+      border-color: rgba(251, 113, 133, .3);
+      background: rgba(251, 113, 133, .04);
+    }
+
+    .agent-toggle-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .agent-toggle-item.excluded .agent-toggle-name {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(251, 113, 133, .4);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background .25s ease;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .25s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent-green);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(18px);
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
       .kpi-grid {
@@ -935,6 +1100,23 @@
       </div>
       <div class="timeline-pills" id="timelinePills">
         <span class="timeline-empty">Fetch a report to start caching hours</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Agent Exclusion Panel -->
+  <section class="manage-agents-section" id="manageAgentsSection" style="display:none">
+    <div class="manage-agents-bar">
+      <div class="manage-agents-header" onclick="toggleAgentPanel()">
+        <div class="manage-agents-title">
+          👥 Manage Agents
+          <span class="count" id="excludedCount">0 excluded</span>
+        </div>
+        <span class="manage-agents-toggle" id="agentPanelArrow">▼</span>
+      </div>
+      <div class="manage-agents-body" id="agentPanelBody">
+        <div class="manage-agents-hint">Toggle agents off to exclude them from the report. Changes are saved automatically.</div>
+        <div class="agents-list" id="agentsList"></div>
       </div>
     </div>
   </section>
@@ -1064,6 +1246,7 @@
     let chartDispo = null;
     let chartTrend = null;
     let lastBuildData = null;
+    let excludedAgents = new Set();
 
     const EFFECTIVE_COLS = [
       'ADP / CALLS count',
@@ -1124,8 +1307,8 @@
       });
     });
 
-    function tryBuild() {
-      if (dispoData && stateData) buildDashboard();
+    async function tryBuild() {
+      if (dispoData && stateData) await buildDashboard();
     }
 
     // ============================================================
@@ -1364,7 +1547,7 @@
         dispoData = dispoResult.data;
 
         markUploadsLoaded(`📦 Cached: ${formatHour(hour)}`);
-        buildDashboard();
+        await buildDashboard();
 
         document.getElementById('dateBadge').textContent = `📊 ${date} • ${formatHour(hour)} (cached)`;
         status.className = 'fetch-status success';
@@ -1425,7 +1608,7 @@
           : `${formatHour(parseInt(startHour))} – ${formatHour(parseInt(endHour))}`;
 
         markUploadsLoaded(`Fetched: ${rangeLabel}`);
-        buildDashboard();
+        await buildDashboard();
 
         const cacheInfo = data.cached ? ' (from cache)' : '';
         document.getElementById('dateBadge').textContent = `📊 ${date} • ${rangeLabel}${cacheInfo}`;
@@ -1485,9 +1668,91 @@
     }
 
     // ============================================================
+    // AGENT EXCLUSION PANEL
+    // ============================================================
+    function toggleAgentPanel() {
+      const body = document.getElementById('agentPanelBody');
+      const arrow = document.getElementById('agentPanelArrow');
+      body.classList.toggle('open');
+      arrow.classList.toggle('open');
+    }
+
+    async function loadExcludedAgents() {
+      try {
+        const res = await fetch('/api/excluded-agents');
+        const data = await res.json();
+        excludedAgents = new Set(data.excluded || []);
+      } catch (e) {
+        console.error('Failed to load excluded agents:', e);
+      }
+    }
+
+    async function toggleAgentExclusion(agentKey, include) {
+      try {
+        if (include) {
+          await fetch(`/api/excluded-agents/${encodeURIComponent(agentKey)}`, { method: 'DELETE' });
+          excludedAgents.delete(agentKey);
+        } else {
+          await fetch('/api/excluded-agents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent: agentKey }),
+          });
+          excludedAgents.add(agentKey);
+        }
+        // Rebuild dashboard with updated exclusions
+        buildDashboard(true);
+      } catch (e) {
+        console.error('Failed to toggle agent:', e);
+      }
+    }
+
+    function populateAgentPanel(agentMap) {
+      const list = document.getElementById('agentsList');
+      const section = document.getElementById('manageAgentsSection');
+      section.style.display = 'block';
+
+      // Sort alphabetically by agent key
+      const sorted = [...agentMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+      list.innerHTML = '';
+
+      sorted.forEach(([agentKey, lastName]) => {
+        const isExcluded = excludedAgents.has(agentKey);
+        const displayLabel = lastName ? `${agentKey}  —  ${lastName}` : agentKey;
+        const item = document.createElement('div');
+        item.className = 'agent-toggle-item' + (isExcluded ? ' excluded' : '');
+        item.innerHTML = `
+          <span class="agent-toggle-name" title="${agentKey}">${displayLabel}</span>
+          <label class="toggle-switch">
+            <input type="checkbox" ${isExcluded ? '' : 'checked'}>
+            <span class="toggle-slider"></span>
+          </label>
+        `;
+        const checkbox = item.querySelector('input');
+        checkbox.addEventListener('change', () => {
+          toggleAgentExclusion(agentKey, checkbox.checked);
+        });
+        list.appendChild(item);
+      });
+
+      updateExcludedCount();
+    }
+
+    function updateExcludedCount() {
+      const el = document.getElementById('excludedCount');
+      const n = excludedAgents.size;
+      el.textContent = n === 0 ? 'none excluded' : `${n} excluded`;
+    }
+
+    // ============================================================
     // CORE BUILD
     // ============================================================
-    function buildDashboard() {
+    async function buildDashboard(skipExclusionLoad) {
+      // Load exclusion list from server (unless re-rendering after a toggle)
+      if (!skipExclusionLoad) {
+        await loadExcludedAgents();
+      }
+
       // --- Join on AGENT column ---
       const stateMap = {};
       stateData.forEach(row => {
@@ -1495,17 +1760,26 @@
         if (key) stateMap[key] = row;
       });
 
+      // Collect ALL agent keys + last names for the panel, then apply exclusion filter
+      const agentMap = new Map();
       const joined = [];
       dispoData.forEach(dRow => {
         const key = (dRow['AGENT'] || '').trim().toLowerCase();
         const sRow = stateMap[key];
         if (sRow) {
-          joined.push({ dispo: dRow, state: sRow });
+          const lastName = (dRow['AGENT LAST NAME'] || '').trim();
+          agentMap.set(key, lastName);
+          if (!excludedAgents.has(key)) {
+            joined.push({ dispo: dRow, state: sRow });
+          }
         }
       });
 
+      // Populate the toggle panel with ALL agents (including excluded)
+      populateAgentPanel(agentMap);
+
       if (joined.length === 0) {
-        alert('No matching agents found between the two files. Check the AGENT column.');
+        alert('No matching agents found (or all agents are excluded).');
         return;
       }
 

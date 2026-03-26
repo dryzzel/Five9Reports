@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
-const { saveSnapshot, getSnapshot, getAvailableHours, deleteSnapshotsAfterHour } = require('./db');
+const { saveSnapshot, getSnapshot, getAvailableHours, deleteSnapshotsAfterHour, getExcludedAgents, addExcludedAgent, removeExcludedAgent } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,7 +17,8 @@ const FIVE9_API_URL = `https://api.five9.com/wsadmin/v13/AdminWebService`;
 
 const basicAuth = Buffer.from(`${FIVE9_USER}:${FIVE9_PASS}`).toString('base64');
 
-// ── Serve static files ──────────────────────────────────────
+// ── Middleware ───────────────────────────────────────────────
+app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // ── SOAP Helpers ─────────────────────────────────────────────
@@ -197,6 +198,23 @@ app.get('/api/snapshots', (req, res) => {
     const date = req.query.date || getTodayDateEDT();
     const hours = getAvailableHours(date);
     res.json({ date, hours });
+});
+
+// ── API: Excluded Agents CRUD ────────────────────────────────
+app.get('/api/excluded-agents', (req, res) => {
+    res.json({ excluded: getExcludedAgents() });
+});
+
+app.post('/api/excluded-agents', (req, res) => {
+    const { agent } = req.body;
+    if (!agent) return res.status(400).json({ error: 'Missing agent field' });
+    addExcludedAgent(agent);
+    res.json({ ok: true, excluded: getExcludedAgents() });
+});
+
+app.delete('/api/excluded-agents/:name', (req, res) => {
+    removeExcludedAgent(decodeURIComponent(req.params.name));
+    res.json({ ok: true, excluded: getExcludedAgents() });
 });
 
 // ── API: Hourly trend data (aggregated metrics per hour) ─────

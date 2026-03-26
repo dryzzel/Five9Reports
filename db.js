@@ -65,4 +65,40 @@ function deleteSnapshotsAfterHour(date, hour) {
   return stmt.run(date, hour);
 }
 
-module.exports = { saveSnapshot, getSnapshot, getAvailableHours, deleteSnapshotsAfterHour };
+// ── Excluded Agents ─────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS excluded_agents (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_key  TEXT NOT NULL UNIQUE
+  )
+`);
+
+/**
+ * Get all excluded agent keys (the AGENT column value, lowercased).
+ * Returns array of strings.
+ */
+function getExcludedAgents() {
+  const rows = db.prepare('SELECT agent_key FROM excluded_agents ORDER BY agent_key').all();
+  return rows.map(r => r.agent_key);
+}
+
+/**
+ * Add an agent to the exclusion list.
+ */
+function addExcludedAgent(agentKey) {
+  const stmt = db.prepare('INSERT OR IGNORE INTO excluded_agents (agent_key) VALUES (?)');
+  return stmt.run(agentKey.toLowerCase().trim());
+}
+
+/**
+ * Remove an agent from the exclusion list.
+ */
+function removeExcludedAgent(agentKey) {
+  const stmt = db.prepare('DELETE FROM excluded_agents WHERE agent_key = ?');
+  return stmt.run(agentKey.toLowerCase().trim());
+}
+
+module.exports = {
+  saveSnapshot, getSnapshot, getAvailableHours, deleteSnapshotsAfterHour,
+  getExcludedAgents, addExcludedAgent, removeExcludedAgent,
+};
