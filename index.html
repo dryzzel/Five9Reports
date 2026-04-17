@@ -1001,11 +1001,11 @@
       transition: transform .25s ease;
     }
 
-    .toggle-switch input:checked + .toggle-slider {
+    .toggle-switch input:checked+.toggle-slider {
       background: var(--accent-green);
     }
 
-    .toggle-switch input:checked + .toggle-slider::before {
+    .toggle-switch input:checked+.toggle-slider::before {
       transform: translateX(18px);
     }
 
@@ -1115,7 +1115,8 @@
         <span class="manage-agents-toggle" id="agentPanelArrow">▼</span>
       </div>
       <div class="manage-agents-body" id="agentPanelBody">
-        <div class="manage-agents-hint">Toggle agents off to exclude them from the report. Changes are saved automatically.</div>
+        <div class="manage-agents-hint">Toggle agents off to exclude them from the report. Changes are saved
+          automatically.</div>
         <div class="agents-list" id="agentsList"></div>
       </div>
     </div>
@@ -1870,7 +1871,7 @@
           labels,
           datasets: [
             {
-              label: 'Brute Connectivity',
+              label: 'Total Conversations',
               data: agents.map(a => +a.bruteConn.toFixed(2)),
               backgroundColor: 'rgba(79,140,255,.75)',
               borderColor: '#4f8cff',
@@ -1878,7 +1879,7 @@
               borderRadius: 6,
             },
             {
-              label: 'Effective Connectivity',
+              label: 'Effective Conversations',
               data: agents.map(a => +a.effectiveConn.toFixed(2)),
               backgroundColor: 'rgba(52,211,153,.75)',
               borderColor: '#34d399',
