@@ -1180,8 +1180,8 @@
             <tr>
               <th>Agent Name</th>
               <th>Total Available Time (Hrs)</th>
-              <th>Total Dispositions</th>
-              <th>Effective Dispositions</th>
+              <th>Total Conversations</th>
+              <th>Effective Conversations</th>
               <th>Brute Connectivity</th>
               <th>Effective Connectivity</th>
             </tr>
@@ -2014,8 +2014,8 @@
       text += `**Report Date:** ${reportDate}\n`;
       text += `*Generated: ${timestamp}*\n\n`;
 
-      // Effective dispositions
-      text += `## Effective Dispositions Breakdown\n\n`;
+      // Effective conversations
+      text += `## Effective Conversations Breakdown\n\n`;
       const effNames = EFFECTIVE_COLS.map(c => c.replace(' / CALLS count', ''));
       EFFECTIVE_COLS.forEach((col, i) => {
         text += `- **${effNames[i]}:** ${dispoTotals[col] ?? 0}\n`;
@@ -2121,7 +2121,7 @@
       if (!lastBuildData) return;
       const { agents, totAvailSum, totDispoSum, totEffSum, bruteTotal, effTotal } = lastBuildData;
 
-      const headers = ['Agent Name', 'Total Available Time (Hrs)', 'Brute Dispositions', 'Effective Dispositions', 'Brute Connectivity', 'Effective Connectivity'];
+      const headers = ['Agent Name', 'Total Available Time (Hrs)', 'Total Conversations', 'Effective Conversations', 'Brute Connectivity', 'Effective Connectivity'];
 
       const escapeCSV = (val) => {
         const str = String(val);
